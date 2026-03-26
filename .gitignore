@@ -1,0 +1,10 @@
+# Large data files — do not commit to GitHub (89 MB, exceeds GitHub limit)
+micro_metrics_export.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.code-workspace

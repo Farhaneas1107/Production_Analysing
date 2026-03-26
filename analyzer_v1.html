@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model V1 Analyzer | NAUE GMBH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index_v4.css">
+    <link rel="stylesheet" href="analyzer.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Override V4 light CSS variables with V1 dark theme */
+        :root {
+            --bg-dark: #0d1117;
+            --surface: rgba(22, 27, 34, 0.8);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-dark: #f0f6fc;
+            --text-gray: #8b949e;
+            --bg-main: #0d1117;
+        }
+        body {
+            background-image: none !important;
+            background-color: #0d1117 !important;
+            color: #f0f6fc !important;
+        }
+        .app-container {
+            height: calc(100vh - 54px);
+            padding: 16px;
+            gap: 16px;
+            margin-top: 54px;
+        }
+        select, input, label {
+            color: #c9d1d9 !important;
+        }
+        select option { background: #161b22; color: #c9d1d9; }
+        .app-header { background-color: var(--naue-dark) !important; }
+    </style>
+</head>
+<body>
+    <header class="app-header" style="position: absolute; top: 0; left: 0; right: 0; z-index: 100;">
+        <div class="header-left">
+            <div class="logo-block" style="display:flex; align-items:center;">
+                <svg width="32" height="32" viewBox="0 0 100 100" style="margin-right: 12px; flex-shrink: 0;">
+                    <g fill="#30a271">
+                        <path d="M 10 10 h 15 v 60 a 10 10 0 0 1 -10 10 h -5 v -70 z" />
+                        <path d="M 90 10 h -15 v 70 h 5 a 10 10 0 0 0 10 -10 v -60 z" />
+                        <path d="M 25 36 L 75 75 L 63 80 L 25 50 Z" />
+                        <rect x="10" y="87" width="80" height="8" />
+                    </g>
+                </svg>
+                <div>
+                    <div class="logo-main"><span class="logo-naue">NAUE</span><span class="logo-gmbh">GMBH</span></div>
+                    <div class="logo-sub">BUILDING ON SUSTAINABLE GROUND</div>
+                </div>
+            </div>
+            <div class="header-divider"></div>
+            <div class="header-context">
+                MODEL V1 &bull; MICRO METRICS OVERLAY
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="version-tag"><span>PRELIMINARY DESIGN</span></div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-panel">
+            <div class="control-group">
+                <label for="machineSelect">Select Machine</label>
+                <div class="select-wrapper">
+                    <select id="machineSelect">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+            </div>
+
+
+
+            <div class="control-group">
+                <label class="section-title">ANALYSIS ENGINE</label>
+                <button id="runAnalysisBtn" class="btn primary" style="width: 100%; margin-top: 8px;">Detect Lags & Anomalies</button>
+                <div id="analysisResult" style="margin-top: 12px; font-size: 0.75rem; color: var(--text-primary); display: none; background: rgba(88, 166, 255, 0.1); padding: 12px; border-radius: 4px; border: 1px solid var(--accent-glow); line-height: 1.5;"></div>
+            </div>
+
+            <div class="control-group" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <label style="margin-bottom: 0;">Variables Overlay</label>
+                    <button id="clearVarsBtn" class="btn secondary" style="padding: 4px 8px; font-size: 0.7rem;">Clear All</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="variableSearch" placeholder="Search variables...">
+                </div>
+                <div id="variablesList" class="variables-list custom-scrollbar">
+                    <!-- Variable checkboxes injected here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar glass-panel">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Records</span>
+                        <h3 id="statRecords">0</h3>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Data Timeframe</span>
+                        <h3 id="statDays">0 Days</h3>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Active Variables</span>
+                        <h3 id="statVars">0</h3>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="resetZoomBtn" class="btn primary">Reset Zoom</button>
+                    <button class="btn secondary">Export Data</button>
+                </div>
+            </header>
+
+            <section class="chart-section glass-panel">
+                <div class="chart-header">
+                    <h3>Correlational Timeseries Viewer</h3>
+                    <p class="subtitle">Drag to zoom. Click legend to toggle individual traces.</p>
+                </div>
+                <div id="chartContainer" class="chart-container">
+                    <!-- ECharts injected here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay active">
+        <div class="spinner"></div>
+        <p>Crunching Micro Metrics...</p>
+    </div>
+
+    <script src="analyzer.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
