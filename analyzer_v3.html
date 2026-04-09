@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model V3 — Recipe Intelligence | NAUE GMBH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index_v4.css">
+    <link rel="stylesheet" href="analyzer.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --surface: rgba(22, 27, 34, 0.85);
+            --panel-border: rgba(255,255,255,0.08);
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-glow: rgba(88,166,255,0.3);
+            --bg-dark: #0d1117;
+        }
+        body { background: #0d1117 !important; background-image: none !important; color: var(--text-primary); }
+        .app-container { margin-top: 54px; height: calc(100vh - 54px); width: 100%; padding: 14px; gap: 14px; overflow: hidden; }
+        select, input { color: #c9d1d9 !important; }
+        select option { background: #161b22; }
+
+        /* Force glass-panel to always show dark background in V3 */
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.88) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            border-radius: 8px !important;
+            backdrop-filter: blur(8px) !important;
+        }
+
+        .v3-layout {
+            display: flex;
+            flex-direction: row;
+            gap: 14px;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* ── SIDEBAR: fills full height, variable list grows ── */
+        .filter-sidebar {
+            flex: 0 0 320px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden; /* no scroll — inner panels scroll */
+        }
+        .filter-sidebar .glass-panel { padding: 12px; flex-shrink: 0; }
+        /* Variable overlays panel expands to fill all remaining space */
+        .sidebar-var-panel {
+            flex: 1 1 0 !important;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-var-panel #varList {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: auto;
+            max-height: none !important;
+        }
+
+        /* ── RIGHT CONTENT ───────────────────────────────── */
+        .right-content {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ── BIG COMPARISON CHART ────────────────────────── */
+        .chart-panel {
+            flex: 1 1 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-panel .glass-panel {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 14px;
+        }
+        #compareChart {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+
+        /* ── BOTTOM ROW: 3 equal panels ─────────────────── */
+        .bottom-row {
+            flex: 0 0 30%;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+            height: 30%;
+            overflow: hidden;
+        }
+        .bottom-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .bottom-panel .glass-panel {
+            height: 100%;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-scroll {
+            flex: 1 1 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* ── RUN ROWS ────────────────────────────────────── */
+        .run-row {
+            display: grid;
+            grid-template-columns: 18px 1fr auto auto;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 4px;
+            border-bottom: 1px solid var(--panel-border);
+            cursor: pointer;
+            transition: background 0.15s;
+            font-size: 0.75rem;
+        }
+        .run-row:hover { background: rgba(88,166,255,0.06); }
+        .run-row.selected { background: rgba(88,166,255,0.12); border-left: 3px solid var(--accent); padding-left: 6px; }
+        .run-check { width: 14px; height: 14px; border-radius: 3px; border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; transition: all 0.2s; }
+        .run-row.selected .run-check { background: var(--accent); border-color: var(--accent); }
+        .run-po { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; }
+        .run-date { color: var(--text-secondary); font-size: 0.65rem; }
+        .run-qty { color: #3fb950; font-weight: 700; font-size: 0.7rem; white-space: nowrap; }
+        .run-score { font-size: 0.65rem; padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+        .score-hi  { background: rgba(63,185,80,0.15);  color: #3fb950; }
+        .score-mid { background: rgba(210,153,34,0.15); color: #d29922; }
+        .score-lo  { background: rgba(248,81,73,0.15);  color: #f85149; }
+
+        /* ── QUALITY CARDS ────────────────────────────────── */
+        .quality-card {
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+        }
+        .quality-card-title { font-size: 0.65rem; font-weight: 700; margin-bottom: 5px; }
+        .quality-kpis { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; text-align: center; }
+        .kpi-val { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); line-height: 1; }
+        .kpi-lbl { font-size: 0.55rem; color: var(--text-secondary); margin-top: 2px; }
+        .kpi-yield { margin-top: 5px; font-size: 0.65rem; color: #3fb950; font-weight: 600; }
+
+        /* ── SUMMARY TABLE ────────────────────────────────── */
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+        .summary-table th { padding: 5px 8px; text-align: left; font-size: 0.6rem; letter-spacing: 0.05em; color: var(--text-secondary); border-bottom: 1px solid var(--panel-border); white-space: nowrap; }
+        .summary-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); font-size: 0.68rem; }
+        .var-badge { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+        .delta-pos { color: #3fb950; font-weight: 700; }
+        .delta-neg { color: #f85149; font-weight: 700; }
+
+        /* ── SHARED HELPERS ───────────────────────────────── */
+        .section-header { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--accent); font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+        .run-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; align-items: center; }
+        .run-pill { display: inline-flex; align-items: center; gap: 5px; background: rgba(88,166,255,0.1); border: 1px solid var(--accent-glow); border-radius: 20px; padding: 3px 8px; font-size: 0.65rem; color: var(--accent); }
+        .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); text-align: center; padding: 10px; font-size: 0.78rem; gap: 8px; }
+
+        /* Autocomplete dropdown */
+        #articleSuggestions { position: absolute; z-index: 100; width: 100%; background: rgba(1,4,9,0.97); border: 1px solid var(--panel-border); border-radius: 4px; max-height: 140px; overflow-y: auto; }
+        .article-wrap { position: relative; }
+    </style>
+</head>
+<body>
+    <!-- NAUE Header -->
+    <header class="app-header" style="position: absolute; top: 0; left: 0; right: 0; z-index: 100;">
+        <div class="header-left">
+            <div class="logo-block" style="display:flex; align-items:center;">
+                <svg width="32" height="32" viewBox="0 0 100 100" style="margin-right: 12px; flex-shrink: 0;">
+                    <g fill="#30a271">
+                        <path d="M 10 10 h 15 v 60 a 10 10 0 0 1 -10 10 h -5 v -70 z" />
+                        <path d="M 90 10 h -15 v 70 h 5 a 10 10 0 0 0 10 -10 v -60 z" />
+                        <path d="M 25 36 L 75 75 L 63 80 L 25 50 Z" />
+                        <rect x="10" y="87" width="80" height="8" />
+                    </g>
+                </svg>
+                <div>
+                    <div class="logo-main"><span class="logo-naue">NAUE</span><span class="logo-gmbh">GMBH</span></div>
+                    <div class="logo-sub">BUILDING ON SUSTAINABLE GROUND</div>
+                </div>
+            </div>
+            <div class="header-divider"></div>
+            <div class="header-context">MODEL V3 &bull; RECIPE INTELLIGENCE</div>
+        </div>
+        <div class="header-right">
+            <div class="version-tag"><span>PRODUCTION COMPARISON</span></div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <div class="v3-layout">
+
+            <!-- ══ SIDEBAR ══════════════════════════════════════════════════ -->
+            <aside class="filter-sidebar custom-scrollbar">
+
+                <div class="glass-panel">
+                    <div class="section-header">Plant / Location</div>
+                    <div class="select-wrapper">
+                        <select id="locationFilter"><option value="">Loading…</option></select>
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+                    <div class="section-header">Machine</div>
+                    <div class="select-wrapper">
+                        <select id="machineFilter"><option value="">Select location first</option></select>
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+                    <div class="section-header">Date Range</div>
+                    <label style="font-size:0.65rem; color:var(--text-secondary); margin-bottom:4px; display:block;">FROM</label>
+                    <input type="datetime-local" id="startDate" class="styled-input" style="font-size:12px; margin-bottom:10px;">
+                    <label style="font-size:0.65rem; color:var(--text-secondary); margin-bottom:4px; display:block;">TO</label>
+                    <input type="datetime-local" id="endDate" class="styled-input" style="font-size:12px;">
+                </div>
+
+                <div class="glass-panel">
+                    <div class="section-header">Article / Item No.</div>
+                    <div class="article-wrap">
+                        <input type="text" id="articleFilter" class="styled-input" placeholder="e.g. 180305" style="margin-bottom:4px;">
+                        <div id="articleSuggestions" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel sidebar-var-panel">
+                    <div class="section-header" style="flex-shrink:0;">Variable Overlays</div>
+                    <input type="text" id="varSearch" class="styled-input" placeholder="Search…" style="margin-bottom:8px; flex-shrink:0;">
+                    <div id="varList" class="variables-list custom-scrollbar"></div>
+                </div>
+
+                <button id="loadRunsBtn" class="btn primary" style="width:100%; padding:12px; margin-top:auto;">
+                    Load Production Runs
+                </button>
+            </aside>
+
+            <!-- ══ RIGHT CONTENT ═════════════════════════════════════════════ -->
+            <div class="right-content">
+
+                <!-- TOP: Big comparison chart -->
+                <div class="chart-panel">
+                    <div class="glass-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-shrink:0;">
+                            <div>
+                                <div class="section-header" style="margin-bottom:4px;">Comparison Chart</div>
+                                <div class="run-pills" id="selectedPills">
+                                    <span style="color:var(--text-secondary); font-size:0.72rem;">Select runs below to compare.</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; flex-shrink:0;">
+                                <button id="compareBtn" class="btn primary" style="display:none; padding:6px 14px; font-size:0.73rem;">Compare Selected</button>
+                                <button id="clearRunsBtn" class="btn secondary" style="padding:6px 14px; font-size:0.73rem;">Clear</button>
+                            </div>
+                        </div>
+                        <div id="compareChart" style="flex:1 1 0; min-height:0;">
+                            <div class="empty-state">
+                                <i data-lucide="git-compare" style="width:32px;height:32px;opacity:0.25;"></i>
+                                <span>Select 2+ runs from the table below, choose variables, then click Compare.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM: 3 equal panels -->
+                <div class="bottom-row">
+
+                    <!-- Panel 1: Production Runs -->
+                    <div class="bottom-panel">
+                        <div class="glass-panel">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-shrink:0;">
+                                <div class="section-header" style="margin-bottom:0;">Production Runs <span id="runCount" style="color:var(--text-secondary); font-weight:400;">(–)</span></div>
+                            </div>
+                            <div class="panel-scroll custom-scrollbar" id="runsList">
+                                <div class="empty-state">Load runs to begin.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Quality Scores -->
+                    <div class="bottom-panel">
+                        <div class="glass-panel">
+                            <div class="section-header" style="flex-shrink:0;">Quality Scores</div>
+                            <div class="panel-scroll custom-scrollbar" id="qualityCards">
+                                <div class="empty-state">Select runs to see KPIs.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: Variable Summary -->
+                    <div class="bottom-panel">
+                        <div class="glass-panel">
+                            <div class="section-header" style="flex-shrink:0;">Variable Avg. Summary</div>
+                            <div class="panel-scroll custom-scrollbar">
+                                <table class="summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable</th>
+                                            <th id="colRun1">Run A</th>
+                                            <th id="colRun2">Run B</th>
+                                            <th>Δ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="summaryBody">
+                                        <tr><td colspan="4" style="color:var(--text-secondary); text-align:center; padding:16px; font-size:0.72rem;">Compare runs to see differences.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /bottom-row -->
+            </div><!-- /right-content -->
+        </div><!-- /v3-layout -->
+    </div><!-- /app-container -->
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loadingMsg">Loading…</p>
+    </div>
+
+    <script>window.CHART_THEME = 'dark';</script>
+    <script src="analyzer_v3.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

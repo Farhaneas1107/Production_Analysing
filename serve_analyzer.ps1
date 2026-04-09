@@ -93,7 +93,7 @@ while ($true) {
             if ([string]::IsNullOrEmpty($line)) { break }
             $idx = $line.IndexOf(":")
             if ($idx -gt 0) {
-                $k = $line.Substring(0,$idx).Trim()
+                $k = $line.Substring(0,$idx).Trim().ToLower()
                 $v = $line.Substring($idx+1).Trim()
                 $reqHeaders[$k] = $v
             }
@@ -115,21 +115,26 @@ while ($true) {
                 $proxyReq.ReadWriteTimeout = 120000
 
                 # If POST, read body and forward
-                if ($method -eq "POST" -and $reqHeaders.ContainsKey("Content-Length")) {
-                    $bodyLen = [int]$reqHeaders["Content-Length"]
+                if ($method -eq "POST" -and $reqHeaders.ContainsKey("content-length")) {
+                    $bodyLen = [int]$reqHeaders["content-length"]
                     if ($bodyLen -gt 0) {
                         $proxyReq.ContentType = "application/json"
-                        $proxyReq.ContentLength = $bodyLen
-                        $bodyBuf = New-Object byte[] $bodyLen
-                        $rawStream = $client.GetStream()
+                        
+                        # Read body from the StreamReader directly to correctly handle the internal buffer!
+                        $charBuf = New-Object char[] $bodyLen
                         $total = 0
                         while ($total -lt $bodyLen) {
-                            $r = $rawStream.Read($bodyBuf, $total, $bodyLen - $total)
+                            $r = $reader.Read($charBuf, $total, $bodyLen - $total)
                             if ($r -le 0) { break }
                             $total += $r
                         }
+                        
+                        $bodyStr = [string]::new($charBuf, 0, $total)
+                        $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($bodyStr)
+                        
+                        $proxyReq.ContentLength = $bodyBytes.Length
                         $ps = $proxyReq.GetRequestStream()
-                        $ps.Write($bodyBuf, 0, $total)
+                        $ps.Write($bodyBytes, 0, $bodyBytes.Length)
                         $ps.Close()
                     }
                 }
